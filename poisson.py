@@ -1,4 +1,5 @@
 import numpy as np
+from linalg import jacobi
 
 GRAD_ITER_MAX = 2
 
@@ -80,48 +81,120 @@ def poisson(mesh, boundaries, init=default_init):
                     grad_x[cell_2] -= flux_x/volumes[cell_2]
                     grad_y[cell_2] -= flux_y/volumes[cell_2]
                     
-            for i in range(n_pairs):
-                if pairs['on_bnd'][i]:
-                    continue
-                cell_1 = pairs['neighboring_cells'][i][0]['Cell']
-                cell_2 = pairs['neighboring_cells'][i][1]['Cell']
-                
-                d_cf_x = cells['centers'][cell_2][0] - cells['centers'][cell_1][0]
-                d_cf_y = cells['centers'][cell_2][1] - cells['centers'][cell_1][1]
-                d_cf_norm = np.sqrt(d_cf_x**2 + d_cf_y**2)
-                e_cf_x = d_cf_x/d_cf_norm
-                e_cf_y = d_cf_y/d_cf_norm
-        
-                gw = np.sqrt((pairs['centers'][i][0] - cells['centers'][cell_2][0])**2 + (pairs['centers'][i][1] - cells['centers'][cell_2][1])**2)/d_cf_norm
-                
-                grad_x_e[i] = grad_x[cell_1]*gw + grad_x[cell_2]*(1.-gw)
-                grad_y_e[i] = grad_y[cell_1]*gw + grad_y[cell_2]*(1.-gw)
-                
-                grad_x_e[i] = grad_x_e[i] + e_cf_x*((phi[cell_2] - phi[cell_1])/d_cf_norm - (grad_x_e[i]*e_cf_x + grad_y_e[i]*e_cf_y))
-                grad_y_e[i] = grad_y_e[i] + e_cf_y*((phi[cell_2] - phi[cell_1])/d_cf_norm - (grad_x_e[i]*e_cf_x + grad_y_e[i]*e_cf_y))
-                
-            for i_bnd, bnd in enumerate(boundaries):
-                if bnd[0] == 'D':
-                    for i_edge, edge in enumerate(mesh['boundaries']['faces'][i_bnd]):
-                        cell = mesh['boundaries']['cells'][i_bnd][i_edge]
-                        d_x = pairs['centers'][edge][0] - cells['centers'][cell][0]
-                        d_y = pairs['centers'][edge][1] - cells['centers'][cell][1]
-                        if 'Cell' in pairs['neighboring_cells'][edge][0]:
-                            n_x = pairs['cells_normals'][edge][0]
-                            n_y = pairs['cells_normals'][edge][1]
-                        else:
-                            n_x = - pairs['cells_normals'][edge][0]
-                            n_y = - pairs['cells_normals'][edge][1]
-                            
-                        # TODO: make this better (take into account cross gradients)
-                        grad_x_e[edge] = (bnd[1] - phi[cell])/(-d_x*n_x - d_y*n_y) * n_x
-                        grad_y_e[edge] = (bnd[1] - phi[cell])/(-d_x*n_x - d_y*n_y) * n_y
-                else:
-                    raise ValueError("Bnd not implemented")
+        for i in range(n_pairs):
+            if pairs['on_bnd'][i]:
+                continue
+            cell_1 = pairs['neighboring_cells'][i][0]['Cell']
+            cell_2 = pairs['neighboring_cells'][i][1]['Cell']
+            
+            d_cf_x = cells['centers'][cell_2][0] - cells['centers'][cell_1][0]
+            d_cf_y = cells['centers'][cell_2][1] - cells['centers'][cell_1][1]
+            d_cf_norm = np.sqrt(d_cf_x**2 + d_cf_y**2)
+            e_cf_x = d_cf_x/d_cf_norm
+            e_cf_y = d_cf_y/d_cf_norm
+    
+            gw = np.sqrt((pairs['centers'][i][0] - cells['centers'][cell_2][0])**2 + (pairs['centers'][i][1] - cells['centers'][cell_2][1])**2)/d_cf_norm
+            
+            grad_x_e[i] = grad_x[cell_1]*gw + grad_x[cell_2]*(1.-gw)
+            grad_y_e[i] = grad_y[cell_1]*gw + grad_y[cell_2]*(1.-gw)
+            
+            grad_x_e[i] = grad_x_e[i] + e_cf_x*((phi[cell_2] - phi[cell_1])/d_cf_norm - (grad_x_e[i]*e_cf_x + grad_y_e[i]*e_cf_y))
+            grad_y_e[i] = grad_y_e[i] + e_cf_y*((phi[cell_2] - phi[cell_1])/d_cf_norm - (grad_x_e[i]*e_cf_x + grad_y_e[i]*e_cf_y))
+            
+        for i_bnd, bnd in enumerate(boundaries):
+            if bnd[0] == 'D':
+                for i_edge, edge in enumerate(mesh['boundaries']['faces'][i_bnd]):
+                    cell = mesh['boundaries']['cells'][i_bnd][i_edge]
+                    d_x = pairs['centers'][edge][0] - cells['centers'][cell][0]
+                    d_y = pairs['centers'][edge][1] - cells['centers'][cell][1]
+                    if 'Cell' in pairs['neighboring_cells'][edge][0]:
+                        n_x = pairs['cells_normals'][edge][0]
+                        n_y = pairs['cells_normals'][edge][1]
+                    else:
+                        n_x = - pairs['cells_normals'][edge][0]
+                        n_y = - pairs['cells_normals'][edge][1]
+                        
+                    # TODO: make this better (take into account cross gradients)
+                    grad_x_e[edge] = (bnd[1] - phi[cell])/(-d_x*n_x - d_y*n_y) * n_x
+                    grad_y_e[edge] = (bnd[1] - phi[cell])/(-d_x*n_x - d_y*n_y) * n_y
+            else:
+                raise ValueError("Bnd not implemented")
             
         
         
         return
+    
+    def laplacian():
+        matrix[:, :] = 0.
+        rhs[:] = 0.
+        
+        for i in range(n_pairs):
+            if pairs['on_bnd'][i]:
+                continue
+            cell_1 = pairs['neighboring_cells'][i][0]['Cell']
+            cell_2 = pairs['neighboring_cells'][i][1]['Cell']
+            
+            s = pairs['cells_areas'][i]
+            
+            e_f_x = cells['centers'][cell_2][0] - cells['centers'][cell_1][0]
+            e_f_y = cells['centers'][cell_2][1] - cells['centers'][cell_1][1]
+            d_cf_norm = np.sqrt(e_f_x**2 + e_f_y**2)
+            e_f_x *= s/d_cf_norm
+            e_f_y *= s/d_cf_norm
+            s_f_x = pairs['cells_normals'][i][0]*s
+            s_f_y = pairs['cells_normals'][i][1]*s
+            t_f_x = s_f_x - e_f_x
+            t_f_y = s_f_y - e_f_y
+            
+            flux_f = - s / d_cf_norm
+            
+            matrix[cell_1, cell_1] -= flux_f
+            matrix[cell_1, cell_2] += flux_f
+            
+            matrix[cell_2, cell_2] -= flux_f
+            matrix[cell_2, cell_1] += flux_f
+            
+            rhs[cell_1] -= grad_x_e[i] * t_f_x + grad_y_e[i] * t_f_y
+            rhs[cell_2] += grad_x_e[i] * t_f_x + grad_y_e[i] * t_f_y
+            
+        for i_bnd, bnd in enumerate(boundaries):
+            if bnd[0] == 'D':
+                for edge, cell in zip(mesh['boundaries']['faces'][i_bnd], mesh['boundaries']['cells'][i_bnd]):
+                    s = pairs['cells_areas'][edge]
+                    n_x = pairs['cells_normals'][edge][0]
+                    n_y = pairs['cells_normals'][edge][1]
+                    s_x = s*n_x
+                    s_y = s*n_y
+                    
+                    if 'Cell' in pairs['neighboring_cells'][edge][0]:
+                        sign = 1.
+                    else:
+                        sign = -1.
+                        
+                    e_f_x = (pairs['centers'][edge][0] - cells['centers'][cell][0])
+                    e_f_y = (pairs['centers'][edge][1] - cells['centers'][cell][1])
+                    d_cf_norm = np.sqrt(e_f_x**2 + e_f_y**2)
+                    e_f_x *= s/d_cf_norm
+                    e_f_y *= s/d_cf_norm
+                    s_f_x = n_x*s
+                    s_f_y = n_y*s
+                    t_f_x = s_f_x - e_f_x
+                    t_f_y = s_f_y - e_f_y
+                    
+                    flux_b = s / d_cf_norm
+                    
+                    matrix[cell, cell] += flux_b
+                    
+                    rhs[cell] += flux_b*bnd[1] + sign* (grad_x_e[i] * t_f_x + grad_y_e[i] * t_f_y)
+            else:
+                raise ValueError("Bnd not implemented")
+        
+    
+    compute_grad()
+    
+    laplacian()
+    
+    phi = jacobi(matrix, rhs, phi)
     
     compute_grad()
     
