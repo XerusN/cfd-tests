@@ -161,16 +161,17 @@ def poisson(mesh, boundaries, init=default_init):
             if bnd[0] == 'D':
                 for edge, cell in zip(mesh['boundaries']['faces'][i_bnd], mesh['boundaries']['cells'][i_bnd]):
                     s = pairs['cells_areas'][edge]
-                    n_x = pairs['cells_normals'][edge][0]
-                    n_y = pairs['cells_normals'][edge][1]
-                    s_x = s*n_x
-                    s_y = s*n_y
                     
                     if 'Cell' in pairs['neighboring_cells'][edge][0]:
                         sign = 1.
                     else:
                         sign = -1.
                         
+                    n_x = pairs['cells_normals'][edge][0]*sign
+                    n_y = pairs['cells_normals'][edge][1]*sign
+                    s_x = s*n_x
+                    s_y = s*n_y
+                    
                     e_f_x = (pairs['centers'][edge][0] - cells['centers'][cell][0])
                     e_f_y = (pairs['centers'][edge][1] - cells['centers'][cell][1])
                     d_cf_norm = np.sqrt(e_f_x**2 + e_f_y**2)
@@ -185,15 +186,25 @@ def poisson(mesh, boundaries, init=default_init):
                     
                     matrix[cell, cell] += flux_b
                     
-                    rhs[cell] += flux_b*bnd[1] + sign* (grad_x_e[i] * t_f_x + grad_y_e[i] * t_f_y)
+                    rhs[cell] += flux_b*bnd[1] + (grad_x_e[i] * t_f_x + grad_y_e[i] * t_f_y)
             else:
                 raise ValueError("Bnd not implemented")
         
+    # for i in range(4):
+    #     compute_grad()
+        
+    #     laplacian()
+        
+    #     phi = np.linalg.solve(matrix, rhs)
+    
+    compute_grad()
+        
+    laplacian()
+    phi = jacobi(matrix, rhs, phi)
     
     compute_grad()
     
     laplacian()
-    
     phi = jacobi(matrix, rhs, phi)
     
     compute_grad()

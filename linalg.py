@@ -15,24 +15,20 @@ def jacobi(a, b, x):
     
     norm = 1.
     it = 0
+    norm_0 = np.linalg.norm(b)
     
     while norm > 1e-4:
         
         for i in range(n):
-            x[i] = b[i]
-            for j in range(n):
-                if i == j:
-                    continue
-                
-                x[i] -= a[i,j]*x_t[i]
-            
-            x[i] /= a[i, i]
+            s1 = np.dot(a[i, :i], x_t[:i])
+            s2 = np.dot(a[i, i + 1:], x_t[i + 1:])
+            x[i] = (b[i] - s1 - s2) / a[i, i]
         
         for i in range(n):
             r[i] = b[i] - np.sum(a[i, :]*x[:])
         
         x_t[:] = x[:]
-        norm = np.linalg.norm(r)
+        norm = np.linalg.norm(r)/norm_0
         
         it+= 1
         print(it, norm)
