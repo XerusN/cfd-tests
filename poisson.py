@@ -359,7 +359,7 @@ def poisson_node(mesh, boundaries, init=default_init):
                 for node in mesh['boundaries']['nodes'][i_bnd]:
                     
                     matrix[node, :] = 0.
-                    matrix[node, :] = 1.
+                    matrix[node, node] = 1.
                     
                     rhs[node] = bnd[1]
             else:
@@ -372,16 +372,13 @@ def poisson_node(mesh, boundaries, init=default_init):
         
     #     phi = np.linalg.solve(matrix, rhs)
     
-    compute_grad()
+    for _ in range(20):
+        compute_grad()
+            
+        laplacian()
+        phi = jacobi(matrix, rhs, phi)
         
-    laplacian()
-    phi = jacobi(matrix, rhs, phi)
-    
     compute_grad()
     
-    laplacian()
-    phi = jacobi(matrix, rhs, phi)
-    
-    compute_grad()
     
     return phi, phi_edges, grad_x, grad_y, grad_x_e, grad_y_e
